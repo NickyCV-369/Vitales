@@ -35,4 +35,7 @@ return [
         ],
     ],
 
+    'chatbot' => [
+        'url' => env('CHATBOT_URL', 'http://localhost:5000/api/chatbot'),
+    ],
 ];

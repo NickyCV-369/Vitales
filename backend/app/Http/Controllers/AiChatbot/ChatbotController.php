@@ -10,7 +10,7 @@ class ChatbotController extends Controller
 {
     public function handleChatbot(Request $request)
     {
-        $response = Http::post('http://localhost:5000/api/chatbot', [
+        $response = Http::post(config('services.chatbot.url'), [
             'message' => $request->input('message')
         ]);
 

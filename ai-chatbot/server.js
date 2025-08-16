@@ -1,4 +1,3 @@
-// server-rag.js
 require('dotenv').config();
 const express = require('express');
 const bodyParser = require('body-parser');
@@ -54,8 +53,7 @@ const textSchema = Joi.object({
 });
 
 function chunkText(text, maxTokens = 500) {
-  // Simple chunk by characters; you can swap to token-based if needed
-  const approxChars = maxTokens * 4; // heuristic
+  const approxChars = maxTokens * 4; 
   const chunks = [];
   for (let i = 0; i < text.length; i += approxChars) {
     chunks.push(text.slice(i, i + approxChars));
@@ -88,7 +86,6 @@ function float32Buffer(arr) {
 
 app.post('/api/ingest-cms', jwtAuthMiddleware, async (req, res) => {
   try {
-    // Dùng thẳng CMS_API_URL, hoặc từ body.endpoints nếu bạn muốn override
     const endpoints = req.body.endpoints && req.body.endpoints.length > 0 
       ? req.body.endpoints 
       : [process.env.CMS_API_URL];
@@ -132,7 +129,7 @@ app.post('/api/chatbot', async (req, res) => {
   const { error } = textSchema.validate(req.body);
   if (error) return res.status(400).json({ error: error.details[0].message });
 
-  const { message, userId } = req.body;
+  const { message } = req.body;
   const replyCacheKey = `reply:${message}`;
 
   try {
@@ -168,12 +165,10 @@ app.post('/api/chatbot', async (req, res) => {
       }
     }
 
-    // Nếu BM25 có kết quả → feed vào AI luôn
     if (matches.length > 0) {
       return await sendToAI(matches, message, replyCacheKey, res, 'bm25');
     }
 
-    // 3. Nếu không có BM25 → Vector Search
     const embeddingCacheKey = `embedding:${message}`;
     let qEmbedding;
     const cachedEmbedding = await redis.getBuffer(embeddingCacheKey);
@@ -228,7 +223,6 @@ app.post('/api/chatbot', async (req, res) => {
       });
     }
 
-    // Luôn feed vào AI, không check threshold
     return await sendToAI(matches, message, replyCacheKey, res, 'vector-search');
 
   } catch (err) {
@@ -237,22 +231,20 @@ app.post('/api/chatbot', async (req, res) => {
   }
 });
 
-// Hàm gửi dữ liệu vào AI
 async function sendToAI(matches, message, replyCacheKey, res, source) {
   const contexts = matches.map(m =>
     `Source: ${m.source}\nTitle: ${m.title}\nText excerpt:\n${m.content}${m.score !== null ? `\nScore: ${m.score}` : ''}`
   ).join('\n---\n');
 
-  const systemPrompt = `
-Bạn là trợ lý hỗ trợ Vitales.
-- Luôn trả lời dựa trên dữ liệu nguồn được cung cấp; chỉ trả lời khi câu hỏi liên quan đến Vitales.
-- Ngôn ngữ trả lời mặc định là ngôn ngữ người hỏi; đổi sang ngôn ngữ khác nếu được yêu cầu.
-- Nếu người dùng chào bạn, hãy chào lại và hỏi họ có câu hỏi gì về Vitales không
-- Có thể tùy biến câu trả lời nếu vẫn liên quan đến Vitales.
-- Nếu câu hỏi hoàn toàn không liên quan, trả lời chính xác theo ngôn ngữ người hỏi:
+const systemPrompt = `
+Bạn là trợ lý hỗ trợ Vitales. Trả lời bằng Tiếng Anh (nếu câu hỏi được hỏi bằng Tiếng Anh) hoặc Tiếng Việt (nếu câu hỏi được hỏi bằng Tiếng Việt).
+- Luôn ưu tiên trả lời dựa trên dữ liệu nguồn được cung cấp.
+- Nếu vẫn liên quan đến Vitales nhưng không có dữ liệu phù hợp, hãy trả lời tổng quát.
+- Chỉ khi chắc chắn câu hỏi hoàn toàn không liên quan và không có bất kỳ kết nối hợp lý nào với Vitales, hãy trả lời:
   "Xin lỗi, nhưng tôi được đào tạo để hỗ trợ các câu hỏi liên quan đến Vitales. Bạn có câu hỏi nào liên quan đến Vitales không?".
+- Bạn có thể tương tác tự nhiên với người dùng (chào hỏi, gợi ý...).
 `;
-
+// Ngôn ngữ trả lời mặc định là ngôn ngữ người hỏi: ${userLanguage}.
   const userPrompt = `Dữ liệu tham khảo:\n${contexts}\n\nHỏi: ${message}`;
 
   const aiResp = await openai.chat.completions.create({
@@ -287,7 +279,6 @@ app.post('/api/feedback', async (req, res) => {
     ts: Date.now(),
   };
   try {
-    // store as a Redis list for later batch processing
     await redis.lpush('feedback_queue', JSON.stringify(entry));
     return res.json({ status: 'ok' });
   } catch (err) {

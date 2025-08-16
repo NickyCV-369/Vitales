@@ -29,8 +29,6 @@ async function createVectorIndex() {
             "TYPE", "FLOAT32",
             "DIM", VECTOR_DIM.toString(),
             "DISTANCE_METRIC", "COSINE",
-            "INITIAL_CAP", "1000",
-            "BLOCK_SIZE", "1000"
         );
         console.log("✅ Created Redis Vector Index: cms_index");
     } catch (err) {

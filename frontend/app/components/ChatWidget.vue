@@ -141,6 +141,7 @@ const quickReplies = ref([
   'Why should I choose Vitales?',
 ])
 const chatScroll = ref(null)
+const config = useRuntimeConfig()
 
 const isMobile = ref(false)
 onMounted(() => {
@@ -152,6 +153,15 @@ onMounted(() => {
 })
 
 const STORAGE_KEY = 'vitales_chat_conversations_v1'
+
+nextTick(() => {
+  if (typeof window !== 'undefined') {
+    if (!document.cookie.includes('sessionId')) {
+      const sessionId = Math.random().toString(36).substr(2, 9); 
+      document.cookie = `sessionId=${sessionId}; path=/; max-age=${60 * 60 * 24}`;
+    }
+  }
+})
 
 function loadConversations() {
   const raw = localStorage.getItem(STORAGE_KEY)
@@ -292,7 +302,7 @@ function sendMessage() {
 
   messageInput.value = '';
 
-  axios.post('http://127.0.0.1:8000/api/chatbot', { message: userMessage })
+  axios.post(`${config.public.apiUrl}/chatbot`, { message: userMessage })
     .then(response => {
       const botReply = response.data.reply;
       conversation.messages.push({ sender: 'bot', text: botReply });
